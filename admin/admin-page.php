@@ -28,7 +28,9 @@ if ( ! function_exists( 'add_action' ) ) {
 ?>
 <div class="wrap">
 
-	<h1><?php _e( 'Data Tidy', 'hub-data-tidy' ); ?></h1>
+	<h1><span class="dashicons dashicons-trash"></span>&nbsp;<?php _e( 'Data Tidy', 'hub-data-tidy' ); ?></h1>
+
+	<p><?php _e( 'This utility allows for the permanent deletion of objects based on the criteria specified below. The Hub provides easy access to data via the WP REST API, but it is not well suited to being a data warehouse. Removing data that is old will help ensure good API performance.', 'hub-data-tidy' ); ?></p>
 
 	<form id="data-tidy-form" action="" method="POST">
 
@@ -40,16 +42,92 @@ if ( ! function_exists( 'add_action' ) ) {
 				<td>
 					<fieldset>
 					<?php foreach( get_post_types( array( '_builtin' => false ), 'objects' ) as $post_type ): ?>
+					<p>
 						<input id="<?php echo esc_attr( $post_type->name ); ?>" type="checkbox" name="<?php echo esc_attr( $post_type->name ); ?>" />
 						<label for="<?php echo esc_attr( $post_type->name ); ?>">
-							<?php echo $post_type->labels->name; ?>
+							<?php echo esc_html( $post_type->labels->name ); ?>
 						</label>
+					</p>
+					<?php endforeach; ?>
+
+					<?php
+					/*
+						Custom non-WordPress post data types, such as 
+						MIS documents that are stored in their own
+						table for blob storage.
+					*/
+					?>
+					<?php $custom_types = array(
+						0 => array(
+							'name' => 'mis_document',
+							'friendly_name' => __( 'Uploaded Documents', 'hub-data-tidy' )
+						)
+					); ?>
+					<?php foreach( $custom_types as $custom_type ): ?>
+					<p>
+						<input id="<?php echo esc_attr( $custom_type['name'] ); ?>" type="checkbox" name="<?php echo esc_attr( $custom_type['name'] ); ?>" />
+						<label for="<?php echo esc_attr( $custom_type['name'] ); ?>">
+							<?php echo esc_html( $custom_type['friendly_name'] ); ?>
+						</label>
+					</p>
 
 					<?php endforeach; ?>
 					</fieldset>						
 				</td>
 			</tr>
+
+			<tr>	
+				<th scope="row">
+					<?php _e( 'Remove if matching all of:', 'hub-data-tidy' ); ?>
+				</th>
+				<td>
+					<fieldset>
+						<p>
+							<input id="attached-username-toggle" name="attached-username-toggle" type="checkbox" value="true" />
+							<label for="attached-username-toggle">
+								<?php _e( 'Attached username begins with', 'hub-data-tidy' ); ?> 
+								<input id="attached-username-prefix" name="attached-username-prefix" value="" type="text" maxlength="16" />
+							</label>
+						</p>
+						<p>
+							<input id="date-toggle" name="date-toggle" type="checkbox" value="true" />
+							<label for="date-toggle">
+								<?php _e( 'Date of object is older than', 'hub-data-tidy' ); ?>
+								<input type="date" id="datepicker" name="datepicker" />
+							</label>
+						</p>
+					</fieldset>
+
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+					<?php _e( 'Mode', 'hub-data-tidy' ); ?>
+				</th>
+				<td>
+					<fieldset>
+						<p>
+							<input id="simulate" name="simulate" type="checkbox" value="true" checked />
+							<label for="simulate">
+								<?php _e( 'Simulate only', 'hub-data-tidy' ); ?>	
+							</label>
+						</p>
+					</fieldset>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">
+				</th>
+				<td>
+					<p class="submit">
+						<input type="submit" id="submit" class="button button-primary" name="submit" value="<?php _e( 'Tidy', 'hub-data-tidy' ); ?>" />
+					</p>
+					</td>
+			</tr>
+
 		</table>
+
+
 
 	</form>
 

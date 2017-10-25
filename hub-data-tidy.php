@@ -36,6 +36,7 @@ class Hub_Data_Tidy {
 	 */
  	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
 
 	/**
@@ -49,8 +50,32 @@ class Hub_Data_Tidy {
 			'hub-data-tidy',
 			array( $this, 'render_admin_page' ),
 			'dashicons-trash',
-			5
+			50
 		);
+	}
+	
+	/**
+	 * Add required JavaScript files to the queue for later loading.
+	 */
+	public function enqueue_scripts( $hook_suffix ) {
+		if ( 'toplevel_page_hub-data-tidy' == $hook_suffix ) {
+			wp_enqueue_script( 'jquery-ui-datepicker' );
+
+			wp_register_script(
+				'hub-data-tidy-admin-page',
+				plugins_url( 'js/admin-page.js', __FILE__ ),
+				array(
+					'jquery',
+					'jquery-ui-core',
+					'jquery-ui-datepicker'
+				),
+				@filemtime( dirname( __FILE__ ) . '/js/admin-page.js' ),
+				true
+			);
+
+			wp_enqueue_script( 'hub-data-tidy-admin-page' );
+
+		}
 	}
 
 
