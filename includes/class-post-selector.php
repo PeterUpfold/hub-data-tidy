@@ -31,14 +31,14 @@ abstract class Post_Selector {
 
 	/**
 	 * Array of WPDB SQL query compatible conditions. Will be ANDed together in
-	 * the query.
+	 * the query. This should contain sprintf() style placeholders for data.
 	 */
 	protected $conditions;
 
 	/**
-	 * Data format of the $conditions items, for the purposes of $wpdb->prepare.
+	 * Data of the $conditions items, for the purposes of $wpdb->prepare.
 	 */
-	protected $conditions_format;
+	protected $conditions_data;
 
 	/**
 	 * Array of post IDs that have been selected by this selector.
@@ -46,12 +46,22 @@ abstract class Post_Selector {
 	protected $post_ids;
 
 	/**
+	 * Maximum number of posts to retrieve at once.
+	 */
+	protected $limit;
+
+	/**
 	 * Add a WPDB SQL query compatible WHERE block as a mandatory condition that the
 	 * posts must satisfy to be selected by this Post Selector.
 	 *
 	 * @param $where array WPDB-style array of properties
 	 */
-	abstract public function add_condition( $where, $where_format ); 
+	abstract public function add_condition( $where ); 
+
+	/**
+	 * Add an additional bound parameter.
+	 */
+	abstract public function add_condition_data( $where_data );
 
 	/**
 	 * Return an array of the post IDs that this Post Selector has selected.
