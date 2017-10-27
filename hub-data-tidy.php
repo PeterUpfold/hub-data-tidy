@@ -199,9 +199,9 @@ class Hub_Data_Tidy {
 			wp_die();
 		}
 
-		if ( intval( $_POST['batch_size'] ) < 1 ||  intval( $_POST['batch_size'] ) > 10000) {
+		if ( intval( $_POST['batch_size'] ) < 1 ||  intval( $_POST['batch_size'] ) > 100000) {
 			wp_send_json_error( array(
-				'message' => __( 'Batch size was out of range (1-10000).', 'hub-data-tidy' )
+				'message' => __( 'Batch size was out of range (1-100000).', 'hub-data-tidy' )
 			) );
 			wp_die();
 		}
