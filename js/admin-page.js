@@ -49,7 +49,8 @@ jQuery(document).ready(function($) {
 			'date_toggle':                      $('#date-toggle').prop('checked'),
 			'date':                             $('#datepicker').val(),
 			'simulate':                         $('#simulate').prop('checked'),
-			'batch_size':                       $('#batch-size').val()
+			'batch_size':                       $('#batch-size').val(),
+			'_wpnonce':                         $('#_wpnonce').val()
 
 		}, function(data, textStatus, jqXHR) {
 			if (data.success == true) {
@@ -71,13 +72,14 @@ jQuery(document).ready(function($) {
 
 			}
 		}, 'json').fail(function() {
-
+			alert('Request failed');
 		});
 
 		var refreshHandle = window.setInterval(function() {
 			if (dirty) {
 				$.post( ajaxurl, {
-					'action':    'hub_data_tidy_progress'
+					'action':    'hub_data_tidy_progress',
+					'_wpnonce':  $('#_wpnonce').val()
 				}, function (data, textStatus, jqXHR) {
 					if (data.success == true) {
 						$('#message-area').html('');
@@ -86,7 +88,7 @@ jQuery(document).ready(function($) {
 						}
 					}
 				}, 'json').fail(function() {
-
+					alert('Request failed');
 				});
 			}
 		}, 3000);

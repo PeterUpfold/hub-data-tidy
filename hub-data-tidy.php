@@ -123,6 +123,14 @@ class Hub_Data_Tidy {
 			wp_die( __( 'You do not have the needed permissions to use this utility.', 'hub-data-tidy' ) );
 		}	
 
+		if ( ! array_key_exists( '_wpnonce', $_POST ) ) {
+			wp_die( __( 'Unable to verify the form was submitted by a valid user. Please try logging in again and reloading the page.', 'hub-data-tidy' ) );
+		}
+
+		if ( ! wp_verify_nonce( $_POST['_wpnonce'], 'hub-data-tidy' ) ) {
+			wp_die( __( 'Unable to verify the form was submitted by a valid user. Please try logging in again and reloading the page.', 'hub-data-tidy' ) );
+		}
+
 		// first, get the selected conditions and whether to simulate only
 		if ( array_key_exists( 'simulate', $_POST ) && 'false' == $_POST['simulate'] ) {
 			$simulate_only = false;
@@ -230,7 +238,7 @@ class Hub_Data_Tidy {
 				$output_progress[] = sprintf( __( 'Selected %d posts that match the criteria for the post selector for %s', 'hub-data-tidy' ), count( $post_ids ), $post_type ); 
 				
 				// push update to transient for live progress
-				set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
+				set_transient( 'hub-data-tidy' . get_current_user_id() . $_POST['_wpnonce'], $output_progress, (60 * 60) );
 
 
 
@@ -243,7 +251,7 @@ class Hub_Data_Tidy {
 						$remover->remove( intval( $post_id ) );
 
 						// push update to transient for live progress
-						set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
+						set_transient( 'hub-data-tidy' . get_current_user_id() . $_POST['_wpnonce'], $output_progress, (60 * 60) );
 					}
 				}
 				else if ( count( $post_ids  ) > 0 ) {
@@ -252,7 +260,7 @@ class Hub_Data_Tidy {
 						$post_details = get_post( $post_id );
 						$output_progress[] = sprintf( __( 'Simulated: would remove %s ID %d from %s: %s (%s)', 'hub-data-tidy' ), $post_details->post_type, intval( $post_id ), date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ), $post_details->post_title, $post_type );					
 						// push update to transient for live progress
-						set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
+						set_transient( 'hub-data-tidy' . get_current_user_id() . $_POST['_wpnonce'], $output_progress, (60 * 60) );
 
 					}
 				}
@@ -268,7 +276,16 @@ class Hub_Data_Tidy {
 	 * Return the current progress of the job.
 	 */
 	public function get_progress() {
-		wp_send_json_success( get_transient( 'hub-data-tidy' . get_current_user_id() ) );
+
+		if ( ! current_user_can( HUB_DATA_TIDY_REQUIRED_CAPABILITY ) ) {
+			wp_die( __( 'You do not have the needed permissions to use this utility.', 'hub-data-tidy' ) );
+		}
+
+		if ( ! array_key_exists( '_wpnonce', $_POST ) ) {
+			wp_die( __( 'Unable to verify the form was submitted by a valid user. Please try logging in again and reloading the page.', 'hub-data-tidy' ) );
+		}
+		
+		wp_send_json_success( get_transient( 'hub-data-tidy' . get_current_user_id() . $_POST['_wpnonce']) );
 		wp_die();
 	}
 

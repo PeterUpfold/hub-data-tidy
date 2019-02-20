@@ -38,6 +38,8 @@ if ( ! function_exists( 'add_action' ) ) {
 
 	<form id="data-tidy-form" action="" method="POST">
 
+	<input type="hidden" id="_wpnonce" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( 'hub-data-tidy' ) ); ?>" />
+
 		<table class="form-table">
 			<tr>
 				<th scope="row">
