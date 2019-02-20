@@ -39,6 +39,7 @@ jQuery(document).ready(function($) {
 		}
 
 
+
 		$.post( ajaxurl, {
 			'action':                           'hub_data_tidy',
 			'wp_post_types':                    selected_wp_post_types,
@@ -57,15 +58,38 @@ jQuery(document).ready(function($) {
 				$('input#submit').val(hub_data_tidy_l10n.submit_button_normal);
 				$('#spinner').css('visibility', 'hidden');
 				$('#loading-text').text('');
-
+				
+				$('#message-area').html('');
 				for (var i = 0; i < data.data.messages.length; i++) {
 					$('#message-area').append('<p>' + data.data.messages[i] + '</p>' );
+				}
+
+				if (refreshHandle) {
+					window.clearInterval(refreshHandle);
+					refreshHandle = 0;
 				}
 
 			}
 		}, 'json').fail(function() {
 
 		});
+
+		var refreshHandle = window.setInterval(function() {
+			if (dirty) {
+				$.post( ajaxurl, {
+					'action':    'hub_data_tidy_progress'
+				}, function (data, textStatus, jqXHR) {
+					if (data.success == true) {
+						$('#message-area').html('');
+						for (var i = 0; i < data.data.length; i++) {
+							$('#message-area').append('<p>' + data.data[i] + '</p>' );
+						}
+					}
+				}, 'json').fail(function() {
+
+				});
+			}
+		}, 3000);
 
 	});
 

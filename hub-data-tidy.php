@@ -9,7 +9,7 @@ License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
-/* Copyright (C) 2017 Test Valley School.
+/* Copyright (C) 2017-19 Test Valley School.
 
 
     This program is free software; you can redistribute it and/or
@@ -39,6 +39,7 @@ class Hub_Data_Tidy {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
 		add_action( 'wp_ajax_hub_data_tidy', array( $this, 'process_form' ) );
+		add_action( 'wp_ajax_hub_data_tidy_progress', array( $this, 'get_progress' ) );
 	}
 
 	/**
@@ -226,9 +227,11 @@ class Hub_Data_Tidy {
 				}
 
 				$post_ids = $post_selector->get_post_ids();
-
 				$output_progress[] = sprintf( __( 'Selected %d posts that match the criteria for the post selector for %s', 'hub-data-tidy' ), count( $post_ids ), $post_type ); 
 				
+				// push update to transient for live progress
+				set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
+
 
 
 				if ( ! $simulate_only && count( $post_ids ) > 0 ) {
@@ -238,13 +241,19 @@ class Hub_Data_Tidy {
 						$post_details = get_post( $post_id );
 						$output_progress[] = sprintf( __( 'Calling remove on %s ID %d from %s: %s (%s)', 'hub-data-tidy' ), $post_details->post_type, intval( $post_id ), date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ), $post_details->post_title, $post_type );
 						$remover->remove( intval( $post_id ) );
+
+						// push update to transient for live progress
+						set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
 					}
 				}
 				else if ( count( $post_ids  ) > 0 ) {
 					// show what would be removed
 					foreach( $post_ids as $post_id ) {
 						$post_details = get_post( $post_id );
-						$output_progress[] = sprintf( __( 'Simulated: would remove %s ID %d from %s: %s (%s)', 'hub-data-tidy' ), $post_details->post_type, intval( $post_id ), date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ), $post_details->post_title, $post_type );
+						$output_progress[] = sprintf( __( 'Simulated: would remove %s ID %d from %s: %s (%s)', 'hub-data-tidy' ), $post_details->post_type, intval( $post_id ), date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ), $post_details->post_title, $post_type );					
+						// push update to transient for live progress
+						set_transient( 'hub-data-tidy' . get_current_user_id(), $output_progress, (60 * 60) );
+
 					}
 				}
 
@@ -253,6 +262,14 @@ class Hub_Data_Tidy {
 
 		wp_send_json_success( array( 'messages' => $output_progress ) );
 
+	}
+
+	/**
+	 * Return the current progress of the job.
+	 */
+	public function get_progress() {
+		wp_send_json_success( get_transient( 'hub-data-tidy' . get_current_user_id() ) );
+		wp_die();
 	}
 
 };
