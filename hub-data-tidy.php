@@ -336,8 +336,8 @@ class Hub_Data_Tidy {
 		}
 
 		$batch_size = 1000;
-		if ( array_key_exists( 'batch_size', $assoc_args ) && is_numeric( $assoc_args['batch_size'] ) && (int)$assoc_args['batch_size'] > 0 ) {
-			$batch_size = (int)$assoc_args['batch_size'];
+		if ( array_key_exists( 'batch-size', $assoc_args ) && is_numeric( $assoc_args['batch-size'] ) && (int)$assoc_args['batch-size'] > 0 ) {
+			$batch_size = (int)$assoc_args['batch-size'];
 			WP_CLI::log( sprintf( __('Setting batch size to %d.', 'hub-data-tidy' ), $batch_size ) );
 		}
 
