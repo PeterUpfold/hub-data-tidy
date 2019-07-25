@@ -40,6 +40,11 @@ class Hub_Data_Tidy {
 
 		add_action( 'wp_ajax_hub_data_tidy', array( $this, 'process_form' ) );
 		add_action( 'wp_ajax_hub_data_tidy_progress', array( $this, 'get_progress' ) );
+
+
+		if ( class_exists( 'WP_CLI' ) ) {
+			WP_CLI::add_command( 'hub-data-tidy', array( $this, 'cli_data_tidy' ) );
+		}
 	}
 
 	/**
@@ -288,6 +293,164 @@ class Hub_Data_Tidy {
 		wp_send_json_success( get_transient( 'hub-data-tidy' . get_current_user_id() . $_POST['_wpnonce']) );
 		wp_die();
 	}
+
+
+	/**
+	 * Process the tidying up of Hub data through the WP_CLI interface.
+	 *
+	 * --wp-post-types=<post-types>
+	 *  : A comma-separated set of the WordPress post type slugs to tidy (e.g. 'achievements,attendance-marks')
+	 *
+	 * --batch-size=<batch-size>
+	 *  : A maximum number of posts to process in this execution run of the command.
+	 *
+	 * --simulate=<simulate>
+	 *  : Simulate mode is on by default. Pass 'off' or 'false' to actually remove content from WordPress.
+	 *
+	 * --attached-username-prefix=<username-prefix>
+	 *  : Only remove WP posts that have a meta value such that they are associated with usernames beginning with this string.
+	 *
+	 * --date=<date>
+	 *  : A YYYY-MM-DD string, where any content that was created on or after this date will not be selected for removal.
+	 */
+	public function cli_data_tidy( $args, $assoc_args ) {
+		global $wpdb;
+
+		require_once( dirname( __FILE__ ) . '/includes/class-post-selector.php' );
+		require_once( dirname( __FILE__ ) . '/includes/class-removal-mechanism.php' );
+
+		require_once( dirname( __FILE__ ) . '/includes/class-data-tidy-wp-post-selector.php' );
+		require_once( dirname( __FILE__ ) . '/includes/class-data-tidy-wp-post-removal-mechanism.php' );
+
+		if ( ! class_exists( 'WP_CLI' ) ) {
+			wp_die('WP_CLI is not installed or not available.');
+		}
+		
+		$simulate = true;
+
+		if ( array_key_exists( 'simulate', $assoc_args ) ) {
+			if ( 'false' == $assoc_args['simulate'] || 'off' == $assoc_args['simulate'] ) {
+				WP_CLI::log( __( 'Simulate is disabled.', 'hub-data-tidy' ) );
+				$simulate = false;
+			}
+		}
+
+		$batch_size = 1000;
+		if ( array_key_exists( 'batch_size', $assoc_args ) && is_numeric( $assoc_args['batch_size'] ) && (int)$assoc_args['batch_size'] > 0 ) {
+			$batch_size = (int)$assoc_args['batch_size'];
+			WP_CLI::log( sprintf( __('Setting batch size to %d.', 'hub-data-tidy' ), $batch_size ) );
+		}
+
+		$conditions_to_add = [];
+		$conditions_data_to_add = [];
+
+		if ( array_key_exists( 'attached-username-prefix', $assoc_args ) ) {
+			$conditions_to_add[] = "(meta_key = %s AND meta_value LIKE %s)";
+			$conditions_data_to_add[] = 'username';
+			$conditions_data_to_add[] = $wpdb->esc_like( $assoc_args['attached-username-prefix'] );
+			WP_CLI::log( sprintf( __( 'Adding username prefix condition for "%s".', 'hub-data-tidy' ), $assoc_args['attached-username-prefix'] ) );
+		}
+
+		if ( array_key_exists( 'date', $assoc_args ) ) {
+			if ( !checkdate(
+				substr( $assoc_args['date'], 5, 2 ), /* month */
+				substr( $assoc_args['date'], 8, 2 ), /* day   */
+				substr( $assoc_args['date'], 0, 4 )  /* year  */
+			) ) {
+				WP_CLI::error( __( 'The date could not be validated (YYYY-MM-DD).', 'hub-data-tidy' ) );
+			}
+			$conditions_to_add[] = "post_date < %s";
+			$conditions_data_to_add[] = $assoc_args['date'];
+			WP_CLI::log( sprintf( __( 'Adding date before condition of "%s".', 'hub-data-tidy' ), $assoc_args['date'] ) );
+		}
+				
+		$remover = new Data_Tidy_WP_Post_Removal_Mechanism();
+
+		// loop through post types and select posts
+		if ( array_key_exists( 'wp-post-types', $assoc_args ) ) {
+			$post_types = explode(',', $assoc_args['wp-post-types'] );
+			foreach( $post_types as $post_type ) {
+				WP_CLI::log( sprintf( __( 'Processing post type "%s".', 'hub-data-tidy' ), $post_type ) );
+				$post_selector = NULL;
+				try {
+					$post_selector = new Data_Tidy_WP_Post_Selector( $post_type, $batch_size );
+				}
+				catch ( InvalidArgumentException $exception ) {
+					WP_CLI::line(
+						sprintf(
+							__( 'Unable to create a post type selector for "%s". Maybe this post type slug is invalid? Exception: "%s"', 'hub-data-tidy' ),
+							$post_type,
+							$exception->getMessage()
+						)
+					);
+					continue;
+				}
+
+				WP_CLI::log( sprintf( __( 'Created a WP post selector for post type %s with batch size %d', 'hub-data-tidy' ), $post_type, $batch_size ) );
+
+				
+				foreach( $conditions_to_add as $condition ) {
+					$post_selector->add_condition( $condition );
+					WP_CLI::log( sprintf( __( 'Adding condition \'%s\' to post selector for %s', 'hub-data-tidy' ), $condition, $post_type ) );
+				}
+				foreach( $conditions_data_to_add as $data ) {
+					$post_selector->add_condition_data( $data );
+				}
+
+				$post_ids = $post_selector->get_post_ids();
+				WP_CLI::log( sprintf( __( 'Selected %d posts that match the criteria for the post selector for %s', 'hub-data-tidy' ), count( $post_ids ), $post_type ) );
+
+				$removed_count = 0;
+
+				if ( $simulate && count( $post_ids ) > 0 ) {
+					/* simulate removal */
+					foreach( $post_ids as $post_id ) {
+						$post_details = get_post( $post_id );
+						WP_CLI::line(
+							sprintf(
+								__( 'Simulated: would remove %s ID %d from %s: %s (%s)', 'hub-data-tidy' ),
+								$post_details->post_type, intval( $post_id ),
+								date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ),
+								$post_details->post_title, $post_type 
+							)
+						);
+						$removed_count++;
+					}
+				}
+				else if ( count( $post_ids ) > 0 ) {
+					/* actually remove */
+					foreach( $post_ids as $post_id ) {
+						$post_details = get_post( $post_id );
+						WP_CLI::log(
+							sprintf(
+								__( 'Calling remove on %s ID %d from %s: %s (%s)', 'hub-data-tidy' ),
+								$post_details->post_type, intval( $post_id ),
+								date('Y-m-d H:i:s', strtotime( $post_details->post_date ) ),
+								$post_details->post_title, $post_type 
+							)
+					       	);
+						$remover->remove( intval( $post_id ) );	
+						$removed_count++;
+					}
+				}
+				else {
+					/* no posts */
+					WP_CLI::error( __( 'No content was found that matched the conditions to tidy.', 'hub-data-tidy' ) );
+				}
+
+			}
+		}
+		else {
+			WP_CLI::error( __( 'No wp-post-types were specified to tidy.', 'hub-data-tidy' ) );
+		}
+
+
+		WP_CLI::log(
+			( $simulate ) ? sprintf( __( 'Simulated removal of %d items.', 'hub-data-tidy' ), $removed_count ) :
+					sprintf( __( 'Removed %d items.', 'hub-data-tidy' ), $removed_count )
+		);
+
+	}	
 
 };
 
