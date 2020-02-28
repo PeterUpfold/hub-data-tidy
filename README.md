@@ -46,6 +46,6 @@ batch sizes or for automated use.
 
 ## Licence
 
-[In common with the Moodle software from which it derives](https://docs.moodle.org/dev/License), Parent Progress View and Hub Data Tidy are available under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+Hub Data Tidy is available under the terms of the GNU General Public License as published by the Free Software Foundation, version 2 of the License.
 
 Please see `LICENSE.md` in this repository for full licence text.
